@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>chat</title>
+	<style>
+	body{margin:0;padding: 0;}
+	.wind{background:url(../img/zm6.jpg)left;height: 750px;width: 100%;border:1px solid #ddd;overflow: hidden;}
+	.login{width: 400px;height: 200px;border: 2px solid #fc0;border-radius: 10px;background-color:#ffc;margin:250px 300px;box-shadow: 0px 0px 5px 3px #fc0;}
+	table{margin: 0 auto;margin-top: 40px;}
+	td{height: 30px;}
+	#loginbtn{width: 50%;}
+	.chat{width: 800px;margin: 20px auto;text-align: right;display: none;}
+	.chat .chatWin{border:2px solid #7FFFAA;border-radius: 3px;height: 600px;overflow-y: auto;text-align: left;}
+	.text{width: 800px;box-sizing: border-box;min-height: 80px;margin-top: 20px;}
+	ul{margin: 0px; padding: 0px;list-style: none;padding: 10px;background-color: #fff;}
+	li{margin-top: 15px;background-color:  #90EE90;padding: 10px 5px;}
+	.content{word-wrap:break-word;}
+	h4{margin: 0px;padding: 0px;}
+
+
+		
+	</style>
+	<script src='../common.js'></script>
+	<script>
+		/*
+			1 把文件内容写入页面
+			2.发送消息，消息传入后台，写入文件，文件内容再次写入页面
+			3enter键发送消息
+			5先显示登入页面，获取信息
+
+		*/
+		document.addEventListener('DOMContentLoaded',function(){
+			var chatWin=document.querySelector('.chatWin');
+			var msg=document.querySelector('.text');
+			var send=document.querySelector('#send');
+			var loginbtn=document.querySelector('#loginbtn');
+			var username=document.querySelector('#username');
+			var gender=document.getElementsByName('gender');
+			var login=document.querySelector('.login');
+			var chat=document.querySelector('.chat');
+			var closebtn=document.querySelector('#closebtn');
+			var wind=document.querySelector('.wind');
+
+
+			var _username;
+			var _gender;
+			//刚进入页面时，判断session中是否存在_username和_gender的值，若有则直接登录，没有则进入信息填写
+			check();
+			//点击登录
+			loginbtn.onclick=function(){
+				_username=username.value;
+				for(var i=0;i<gender.length;i++){
+					if(gender[i].checked){
+					_gender=gender[i].value;
+					
+					}
+				}
+				if(_username&&_gender){
+					check('login');
+				}else{
+					alert('信息不能为空');
+				}
+				
+			}
+
+			//登录成功后消息发送
+			//发送消息
+			send.onclick=sendmsg;
+			//enter键发送消息
+			window.onkeyup=function(e){
+				if(e.keyCode==13){
+					sendmsg();
+					e.preventDefault();
+				}
+			}
+
+			//退出
+			closebtn.onclick=function(){
+				check('logout');
+			}
+
+			//消息记录写入页面
+			write();
+			setInterval(write,30);
+				// var _msg=msg.value;
+				// console.log(_gender);
+				// console.log(_username)
+				// ajax({
+				// 	url:'../data/chat.json',
+				// 	success:function(data){
+						
+				// 		var list  = chatWin.getElementsByTagName('ul')[0];
+				// 		list.innerHTML = "";
+				// 		list.innerHTML=data.map((item)=>{
+				// 			return `
+				// 			<li><h4>${item.name}</h4><p class='content'>${item.gender}</p><p>${item.content}</p></li>
+				// 			`;
+				// 		}).join('');
+
+				// 	}
+				// })
+			
+			//登录判断并用session记录
+			function check(action){
+				//发送请求，根据返回值判断登录状态
+				ajax({
+					url:'http://localhost/php/chat/chat4check.php',
+					data:{action:action,gender:_gender,username:_username},
+					success:function(res){
+						if(res==''){//若请求返回为空，则回到登录页面
+							return ;
+						}
+						if(res=='login'){
+							//显示聊天窗口
+							login.style.display='none';
+							chat.style.display='block';
+							wind.style.display='none';
+							//消息记录写入页面
+							// write();
+						}else if(res=='logout'){
+							//刷新页面。回到初始状态
+							location.reload();
+
+						}else{
+							_username=res.username;
+							_gender=res.gender;
+							//显示聊天窗口
+							login.style.display='none';
+							chat.style.display='block';
+							wind.style.display='none';
+							//消息记录写入页面
+							// write();
+						}
+
+					}
+				})
+
+			}
+			//发送消息
+			function sendmsg(){
+				var _msg=msg.value;
+				//发送请求，消息传入后台，写入文件
+				ajax({
+					url:'http://localhost/php/chat/chat4.php',
+					data:{msg:_msg,gender:_gender,name:_username},
+					success:function(data){
+						write();
+					}
+					
+				})
+				
+				//消息发送完清空输入框，自动获取焦距
+				msg.value='';
+				msg.focus();
+			}
+			//文件消息写入页面
+			function write(){
+				ajax({
+				url:'../data/chat.json',
+				success:callback
+				});
+				function callback(data){
+					// console.log(data);
+					var ul=document.createElement('ul');
+					ul.innerHTML=data.map((item)=>{
+						return `
+						<li><h4>${item.name}</h4><p class='content'>${item.gender}</p><p>${item.content}</p></li>
+						`;
+					}).join('');
+					//写入前先清空页面
+					chatWin.innerHTML='';
+					chatWin.appendChild(ul);
+					ul.lastElementChild.scrollIntoView();
+				}
+			}
+			
+
+		});
+	</script>
+</head>
+<body>
+	<div class="wind">
+		<div class="login">
+			<table>
+				<tr>
+					<td><label for="username">用户名</label></td>
+					<td><input type="text" id="username" name="username"></td>
+				</tr>
+				
+				<tr>
+					<td><label for="gender">性别</label></td>
+					<td><input type="radio" value='男' name="gender">男<input type="radio" value='女' name="gender">女</td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><button id="loginbtn">登录</button></td>
+				</tr>
+			</table>
+		</div>
+ 	</div>
+
+	<div class="chat">
+		
+		<div class="chatWin"></div>
+		<textarea name="text" class="text"></textarea>
+		<button id="send">发送</button>
+		<button id="closebtn">退出</button>
+	</div>
+	
+</body>
+</html>
